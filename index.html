@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="춘천 소양호 일대 숙소, 유람선, 감자밭, 닭갈비집 정보를 약도 위에 모은 페이지">
+<title>소양호 답사 지도</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: light; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+
+/* Layout: 약도(왼쪽) + 장소 상세(오른쪽), 아래에 전체 장소 카드와 확인할 것. 좁은 화면에서는 한 줄로 쌓임 */
+:root {
+  --bg: #f3f6f4;
+  --paper: #ffffff;
+  --ink: #1d2a27;
+  --muted: #5c6b67;
+  --line: #d5dfdb;
+  --land: #e6ece4;
+  --contour: #cfd9cc;
+  --water: #b9d6e3;
+  --water-edge: #8fb8cb;
+  --road: #c9b99a;
+  --accent: #1f6f78;
+  --c-stay: #7a4e9c;
+  --c-move: #1f6f78;
+  --c-food: #b5532c;
+  --c-buy: #6c7a1f;
+  --ok-bg: #e2f0e4; --ok-fg: #2f6b3a;
+  --wip-bg: #fbefd9; --wip-fg: #8a5a12;
+  --todo-bg: #ecebf1; --todo-fg: #55516a;
+  --font-display: "Gowun Batang", "Nanum Myeongjo", serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121a19; --paper: #1a2422; --ink: #e4ece9; --muted: #9db0ab; --line: #2c3a37;
+  --land: #1d2826; --contour: #26332f; --water: #1d4250; --water-edge: #2f6377; --road: #6b5f49;
+  --accent: #5fb7bf; --c-stay: #b48fd6; --c-move: #5fb7bf; --c-food: #e48a62; --c-buy: #b3c25a;
+  --ok-bg: #1f3824; --ok-fg: #9fd6a9; --wip-bg: #3a2f17; --wip-fg: #f0c47a; --todo-bg: #2a2935; --todo-fg: #c2bfd6;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121a19; --paper: #1a2422; --ink: #e4ece9; --muted: #9db0ab; --line: #2c3a37;
+  --land: #1d2826; --contour: #26332f; --water: #1d4250; --water-edge: #2f6377; --road: #6b5f49;
+  --accent: #5fb7bf; --c-stay: #b48fd6; --c-move: #5fb7bf; --c-food: #e48a62; --c-buy: #b3c25a;
+  --ok-bg: #1f3824; --ok-fg: #9fd6a9; --wip-bg: #3a2f17; --wip-fg: #f0c47a; --todo-bg: #2a2935; --todo-fg: #c2bfd6;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+.eyebrow { font-size: 12px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-size: clamp(28px, 4vw, 40px); font-weight: 700; margin: 0; text-wrap: balance; line-height: 1.2; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: 1fr; } }
+
+.map { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.map svg { display: block; width: 100%; height: auto; }
+.map-note { font-size: 12px; color: var(--muted); padding: 8px 14px; border-top: 1px solid var(--line); }
+
+.pin { cursor: pointer; outline: none; }
+.pin circle.halo { fill: transparent; transition: fill .15s; }
+.pin.active circle.halo, .pin:hover circle.halo, .pin:focus-visible circle.halo { fill: var(--pin); fill-opacity: .18; }
+.pin .head { stroke: var(--paper); stroke-width: 3; }
+.pin.unsure .head { stroke-dasharray: 3 3; }
+.pin text.glyph { fill: #fff; font-size: 14px; font-weight: 600; text-anchor: middle; dominant-baseline: central; font-family: var(--font-body); pointer-events: none; }
+.pin text.label { fill: var(--ink); font-size: 14px; font-weight: 600; font-family: var(--font-body); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.place-label { fill: var(--muted); font-size: 13px; font-family: var(--font-display); letter-spacing: .08em; }
+.water-label { fill: var(--water-edge); font-size: 20px; font-family: var(--font-display); letter-spacing: .4em; }
+
+.detail { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: grid; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+@media (max-width: 860px) { .detail { position: static; } }
+.detail .kind { font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+.detail h2 { font-family: var(--font-display); font-size: 26px; margin: 0; line-height: 1.25; text-wrap: balance; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; }
+.facts dt { color: var(--muted); font-size: 13px; padding-top: 1px; white-space: nowrap; }
+.facts dd { margin: 0; min-width: 0; }
+.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.notes { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.todo-box { background: var(--bg); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+.todo-box strong { display: block; font-size: 12px; color: var(--muted); letter-spacing: .06em; margin-bottom: 4px; font-weight: 600; }
+.todo-box ul { margin: 0; padding-left: 18px; }
+
+.chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok-fg); }
+.chip.wip { background: var(--wip-bg); color: var(--wip-fg); }
+.chip.todo { background: var(--todo-bg); color: var(--todo-fg); }
+
+h3 { font-family: var(--font-display); font-size: 20px; margin: 0 0 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.card { text-align: left; font: inherit; color: inherit; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; display: grid; gap: 6px; align-content: start; }
+.card:hover { border-color: var(--muted); }
+.card:focus-visible, .pin:focus-visible .head { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card.active { border-color: var(--card-c); box-shadow: inset 0 0 0 1px var(--card-c); }
+.card .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.card .k { font-size: 12px; font-weight: 600; }
+.card .name { font-weight: 600; font-size: 16px; }
+.card .sum { font-size: 13px; color: var(--muted); }
+
+.checklist { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+.checklist ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; columns: 2; }
+@media (max-width: 700px) { .checklist ul { columns: 1; } }
+.checklist li { display: flex; gap: 10px; align-items: baseline; break-inside: avoid; margin-bottom: 8px; }
+.checklist li b { font-weight: 600; white-space: nowrap; }
+.box { width: 14px; height: 14px; border: 1.5px solid var(--muted); border-radius: 3px; flex: none; transform: translateY(2px); }
+
+#kmap { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; min-height: 320px; background: var(--land); }
+.kpin { display: grid; justify-items: center; gap: 2px; cursor: pointer; transform: translateY(-50%); }
+.kpin .head { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font: 600 14px/1 var(--font-body); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); box-sizing: border-box; }
+.kpin .label { font: 600 13px/1.3 var(--font-body); color: #1d2a27; background: #fff; padding: 2px 7px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; }
+.kpin.active .head { outline: 4px solid rgba(31,111,120,.35); }
+.kpin.unsure .head { border-style: dashed; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; }
+.links a { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; text-decoration: none; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+.links a:hover { border-color: var(--accent); }
+.links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.loc-note { font-size: 12px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">춘천 · 소양호 일대 답사 정리</p>
+      <h1>소양호 답사 지도</h1>
+    </div>
+    <div class="legend" aria-label="범례">
+      <span><i class="dot" style="background:var(--c-stay)"></i>숙소</span>
+      <span><i class="dot" style="background:var(--c-move)"></i>이동</span>
+      <span><i class="dot" style="background:var(--c-food)"></i>식사</span>
+      <span><i class="dot" style="background:var(--c-buy)"></i>구매</span>
+    </div>
+  </header>
+
+  <div class="main">
+    <figure class="map" id="map-frame" style="margin:0">
+      <div id="kmap" hidden></div>
+      <svg id="map" viewBox="0 0 800 560" role="img" aria-label="춘천 시내에서 소양강댐, 청평사까지 장소 약도">
+        <rect width="800" height="560" fill="var(--land)"/>
+        <!-- 등고선 느낌 -->
+        <g fill="none" stroke="var(--contour)" stroke-width="1.5">
+          <path d="M560 20 C640 40 700 10 790 40"/>
+          <path d="M600 520 C660 470 740 500 790 460"/>
+          <path d="M20 120 C120 90 180 150 300 110"/>
+          <path d="M40 170 C140 140 200 200 320 160"/>
+          <path d="M640 300 C700 280 740 330 790 300"/>
+          <path d="M620 340 C690 320 740 370 790 350"/>
+        </g>
+        <!-- 소양호 -->
+        <path d="M455 262 C470 230 500 215 530 200 C560 186 575 160 600 150 C630 138 650 160 680 150 C710 140 720 110 760 100 C785 94 800 96 800 96 L800 190 C770 190 750 215 715 220 C690 224 670 205 645 212 C615 220 600 245 570 250 C540 255 520 240 500 255 C480 270 465 280 455 262 Z"
+          fill="var(--water)" stroke="var(--water-edge)" stroke-width="1.5"/>
+        <text class="water-label" x="610" y="198">소양호</text>
+        <!-- 소양강 (댐 아래) -->
+        <path d="M455 262 C420 300 380 330 330 360 C280 390 220 420 150 470 C110 500 70 520 0 540"
+          fill="none" stroke="var(--water)" stroke-width="10" stroke-linecap="round"/>
+        <!-- 댐 -->
+        <rect x="448" y="252" width="22" height="8" rx="2" fill="var(--muted)" transform="rotate(-40 459 256)"/>
+        <!-- 도로 -->
+        <path d="M120 500 C180 440 230 410 280 380 C330 350 380 320 420 290 C440 276 452 268 462 262"
+          fill="none" stroke="var(--road)" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 0"/>
+        <text class="place-label" x="168" y="448" transform="rotate(-38 168 448)">신샘밭로</text>
+        <!-- 유람선 항로 -->
+        <path d="M478 238 C520 210 560 185 620 168" fill="none" stroke="var(--c-move)" stroke-width="2.5" stroke-dasharray="6 6"/>
+        <!-- 시내 -->
+        <g>
+          <circle cx="110" cy="505" r="26" fill="var(--contour)"/>
+          <text class="place-label" x="70" y="470">춘천 시내</text>
+        </g>
+        <g id="pins"></g>
+      </svg>
+      <figcaption class="map-note" id="map-note">약도는 장소 사이의 위치 관계만 보여 줍니다. 실제 거리와 축척은 다릅니다. 점선 테두리 핀은 위치를 아직 확인하지 못한 곳입니다.</figcaption>
+    </figure>
+
+    <aside class="detail" id="detail" aria-live="polite"></aside>
+  </div>
+
+  <section>
+    <h3>전체 장소</h3>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="checklist">
+    <h3>아직 확인할 것</h3>
+    <ul id="todos"></ul>
+  </section>
+</div>
+
+<script>
+// 카카오 개발자 사이트(developers.kakao.com)에서 발급받은 "JavaScript 키"를 넣으면 실제 지도로 바뀝니다.
+// 비워 두면 약도가 그대로 보입니다.
+const KAKAO_JS_KEY = "2630594413cecc58012db221e665d522";
+
+const enc = encodeURIComponent;
+function mapLink(name, lat, lng, label) { return { label: label || "카카오맵에서 보기", href: `https://map.kakao.com/link/map/${enc(name)},${lat},${lng}` }; }
+function routeLink(name, lat, lng) { return { label: "길찾기", href: `https://map.kakao.com/link/to/${enc(name)},${lat},${lng}` }; }
+function searchLink(q, label) { return { label: label || "카카오맵에서 검색", href: `https://map.kakao.com/link/search/${enc(q)}` }; }
+
+const KINDS = {
+  stay: { label: "숙소", color: "var(--c-stay)", glyph: "숙" },
+  move: { label: "이동", color: "var(--c-move)", glyph: "배" },
+  food: { label: "식사", color: "var(--c-food)", glyph: "식" },
+  buy:  { label: "구매", color: "var(--c-buy)",  glyph: "감" },
+};
+const STATUS = { ok: "확정", wip: "협의 중", todo: "미정" };
+
+const PLACES = [
+  {
+    id: "temple", kind: "stay", name: "청평사 템플스테이", status: "wip",
+    x: 690, y: 78, lx: -64, ly: -26, unsure: false,
+    lat: 37.9862083, lng: 127.8084383, loc: "청평사 위치",
+    links: [mapLink("청평사", 37.9862083, 127.8084383), routeLink("청평사", 37.9862083, 127.8084383)],
+    summary: "최대 20명 · 1인 60,000원",
+    facts: [["수용 인원", "<span class='num'>최대 20명</span>"], ["가격", "<span class='num'>60,000원</span> (현재 기준)"], ["입소", "미리 협의하면 밤늦게도 입소 가능"]],
+    notes: ["메모에 장소 이름이 빠져 있어 청평사로 추정해 표시했습니다."],
+    todos: ["정확한 장소 이름 확인", "가격이 1인당인지 확인", "날짜 예약 가능 여부"],
+  },
+  {
+    id: "pension", kind: "stay", name: "선녀와 나무꾼 펜션", status: "todo",
+    x: 735, y: 250, lx: -150, ly: 32, unsure: true,
+    lat: null, lng: null, loc: "춘천 주소를 아직 찾지 못해 실제 지도에는 핀을 넣지 않았어요.",
+    links: [searchLink("선녀와 나무꾼 펜션 춘천")],
+    summary: "민박형 펜션 · 인원 분산 검토",
+    facts: [["형태", "민박형 펜션"], ["활용안", "학생끼리 MT처럼 지내도 된다면 템플스테이와 인원을 나눠서 배정"]],
+    notes: ["지도 위치는 아직 확인하지 않았습니다."],
+    todos: ["가격과 수용 인원", "학생 단독 숙박 가능 여부", "정확한 위치"],
+  },
+  {
+    id: "cruise", kind: "move", name: "소양호 유람선", status: "wip",
+    x: 478, y: 238, lx: 16, ly: 30, unsure: false,
+    lat: 37.9516886, lng: 127.8159249, loc: "소양강여객터미널(소양강댐 선착장) 위치",
+    links: [mapLink("소양강여객터미널", 37.9516886, 127.8159249), routeLink("소양강여객터미널", 37.9516886, 127.8159249), mapLink("청평사선착장", 37.9755969, 127.8172316, "청평사 선착장 보기")],
+    summary: "편도 6,000원 · 정기선 대관 불가",
+    facts: [["정기선", "소양강댐 ↔ 청평사, 편도 <span class='num'>6,000원</span>"], ["대관", "정기선은 대관 불가"], ["유람용 배", "따로 있음, 가격 미확인"], ["진행 팁", "공문을 보내면 훨씬 수월함"]],
+    notes: [],
+    todos: ["유람용 유람선 가격", "유람용 배 대관 가능 여부", "공문 보낼 곳과 양식"],
+  },
+  {
+    id: "potato", kind: "buy", name: "감자밭", status: "ok",
+    x: 250, y: 395, lx: -40, ly: 34, unsure: false,
+    lat: 37.9307, lng: 127.7848, loc: "주소(신샘밭로 674) 기준 근처 위치예요. 정확한 위치는 카카오맵 검색으로 확인하세요.",
+    links: [searchLink("감자밭 춘천 신샘밭로 674", "카카오맵에서 보기"), routeLink("감자밭", 37.9307, 127.7848)],
+    summary: "4개입 세트 · 292,530원 구입",
+    facts: [["구성", "오리지널, 옥수수, 치즈, 두바이 4개입 세트"], ["구입 금액", "<span class='num'>292,530원</span>"]],
+    notes: [],
+    todos: [],
+  },
+  {
+    id: "dakgalbi", kind: "food", name: "닭갈비집 후보", status: "todo",
+    x: 360, y: 322, lx: -118, ly: -18, unsure: false,
+    lat: 37.9301099, lng: 127.7825631, loc: "핀은 통나무집닭갈비(신샘밭로 655) 위치예요. 토담은 신샘밭로 662로 바로 근처이고, 농가는 주소를 아직 찾지 못했어요.",
+    links: [mapLink("통나무집닭갈비", 37.9301099, 127.7825631, "통나무 보기"), searchLink("토담숯불닭갈비 춘천", "토담 보기"), searchLink("농가닭갈비 춘천", "농가 검색")],
+    summary: "통나무 · 토담 · 농가 등",
+    facts: [["후보", "통나무, 토담, 농가 등"]],
+    notes: [],
+    todos: ["한 곳으로 정하기", "단체석과 1인 가격, 예약 가능 여부"],
+  },
+];
+
+const svgNS = "http://www.w3.org/2000/svg";
+const pinsG = document.getElementById("pins");
+const cardsEl = document.getElementById("cards");
+const detailEl = document.getElementById("detail");
+let current = "temple";
+
+function el(tag, attrs) { const n = document.createElementNS(svgNS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; }
+
+PLACES.forEach(p => {
+  const k = KINDS[p.kind];
+  const g = el("g", { class: "pin" + (p.unsure ? " unsure" : ""), tabindex: "0", role: "button", "aria-label": p.name, "data-id": p.id, style: "--pin:" + k.color });
+  g.append(el("circle", { class: "halo", cx: p.x, cy: p.y, r: 26 }));
+  g.append(el("circle", { class: "head", cx: p.x, cy: p.y, r: 15, fill: k.color }));
+  const t = el("text", { class: "glyph", x: p.x, y: p.y }); t.textContent = k.glyph; g.append(t);
+  const l = el("text", { class: "label", x: p.x + p.lx, y: p.y + p.ly }); l.textContent = p.name; g.append(l);
+  g.addEventListener("click", () => select(p.id));
+  g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(p.id); } });
+  pinsG.append(g);
+
+  const c = document.createElement("button");
+  c.type = "button"; c.className = "card"; c.dataset.id = p.id; c.style.setProperty("--card-c", k.color);
+  c.innerHTML = `<div class="top"><span class="k" style="color:${k.color}">${k.label}</span><span class="chip ${p.status}">${STATUS[p.status]}</span></div>
+    <div class="name">${p.name}</div><div class="sum">${p.summary}</div>`;
+  c.addEventListener("click", () => { select(p.id); document.getElementById("map").scrollIntoView({ block: "nearest", behavior: "smooth" }); });
+  cardsEl.append(c);
+});
+
+let kmap = null;
+function select(id, moveMap = true) {
+  current = id;
+  const p = PLACES.find(x => x.id === id), k = KINDS[p.kind];
+  document.querySelectorAll(".pin").forEach(n => n.classList.toggle("active", n.dataset.id === id));
+  document.querySelectorAll(".card").forEach(n => n.classList.toggle("active", n.dataset.id === id));
+  document.querySelectorAll(".kpin").forEach(n => n.classList.toggle("active", n.dataset.id === id));
+  if (kmap && p.lat != null && moveMap) kmap.panTo(new kakao.maps.LatLng(p.lat, p.lng));
+  detailEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span class="kind" style="color:${k.color}">${k.label}</span><span class="chip ${p.status}">${STATUS[p.status]}</span>
+    </div>
+    <h2>${p.name}</h2>
+    <dl class="facts">${p.facts.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>
+    ${p.notes.length ? `<ul class="notes" style="color:var(--muted);font-size:13px">${p.notes.map(n => `<li>${n}</li>`).join("")}</ul>` : ""}
+    <div class="links">${p.links.map(l => `<a href="${l.href}" target="_blank" rel="noopener">${l.label} ↗</a>`).join("")}</div>
+    <p class="loc-note" style="margin:0">${p.loc}</p>
+    ${p.todos.length ? `<div class="todo-box"><strong>확인할 것</strong><ul>${p.todos.map(t => `<li>${t}</li>`).join("")}</ul></div>` : `<div class="todo-box"><strong>확인할 것</strong>남은 항목 없음</div>`}`;
+}
+
+const todosEl = document.getElementById("todos");
+PLACES.forEach(p => p.todos.forEach(t => {
+  const li = document.createElement("li");
+  li.innerHTML = `<i class="box"></i><span><b>${p.name}</b> · ${t}</span>`;
+  todosEl.append(li);
+}));
+const extra = document.createElement("li");
+extra.innerHTML = `<i class="box"></i><span><b>전체</b> · 총인원이 20명을 넘으면 숙소를 어떻게 나눌지</span>`;
+todosEl.append(extra);
+
+select(current, false);
+
+function initKakao() {
+  const box = document.getElementById("kmap");
+  box.hidden = false;
+  document.getElementById("map").setAttribute("hidden", "");
+  document.getElementById("map-note").textContent = "카카오맵 위에 장소를 표시했어요. 핀을 누르면 오른쪽에 자세한 정보가 나와요. 점선은 소양강댐에서 청평사로 가는 유람선 뱃길이에요.";
+  kmap = new kakao.maps.Map(box, { center: new kakao.maps.LatLng(37.955, 127.795), level: 8 });
+  kmap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+  const bounds = new kakao.maps.LatLngBounds();
+  PLACES.filter(p => p.lat != null).forEach(p => {
+    const k = KINDS[p.kind];
+    const pos = new kakao.maps.LatLng(p.lat, p.lng);
+    bounds.extend(pos);
+    const node = document.createElement("div");
+    node.className = "kpin" + (p.id === current ? " active" : "");
+    node.dataset.id = p.id;
+    node.innerHTML = `<span class="head" style="background:${getComputedStyle(document.documentElement).getPropertyValue(k.color.slice(4, -1))}">${k.glyph}</span><span class="label">${p.name}</span>`;
+    node.addEventListener("click", () => select(p.id, false));
+    new kakao.maps.CustomOverlay({ map: kmap, position: pos, content: node, yAnchor: 0.5, clickable: true });
+  });
+  new kakao.maps.Polyline({
+    map: kmap,
+    path: [new kakao.maps.LatLng(37.9516886, 127.8159249), new kakao.maps.LatLng(37.963, 127.8185), new kakao.maps.LatLng(37.9755969, 127.8172316)],
+    strokeWeight: 3, strokeColor: "#1f6f78", strokeOpacity: 0.9, strokeStyle: "dash",
+  });
+  kmap.setBounds(bounds, 40, 40, 40, 40);
+}
+
+function showKakaoError(msg) {
+  document.getElementById("map-note").textContent = msg + " 지금은 약도를 보여 드려요.";
+}
+
+if (KAKAO_JS_KEY) {
+  const s = document.createElement("script");
+  s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${enc(KAKAO_JS_KEY)}&autoload=false`;
+  s.onload = () => {
+    try { kakao.maps.load(initKakao); }
+    catch (e) { showKakaoError("카카오맵을 불러오지 못했어요. 키와 등록한 사이트 주소를 확인해 주세요."); }
+  };
+  s.onerror = () => showKakaoError("카카오맵을 불러오지 못했어요. 카카오 개발자 사이트에 이 사이트 주소가 등록되어 있는지 확인해 주세요.");
+  document.head.append(s);
+}
+</script>
+
+</body>
+</html>
